@@ -1,133 +1,62 @@
 package com.example.biblioteca.controller;
 
-import java.util.List;
-import java.util.Map;
-
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.example.biblioteca.dto.CrearAutorDTO;
-import com.example.biblioteca.dto.ListaBreveLibrosDTO;
 import com.example.biblioteca.exception.JSendResponse;
-import com.example.biblioteca.model.Autor;
 import com.example.biblioteca.service.AutorService;
-import com.example.biblioteca.service.LibroService;
+
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/v1/autores")
 public class AutorController {
-        
+
         @Autowired
         private AutorService autorService;
 
-        @Autowired
-        private LibroService libroService;
-
-        // crear autor
+        // Crear autor
         @PostMapping
-        public ResponseEntity<JSendResponse> crearAutor(@RequestBody CrearAutorDTO dtoEntrada) {
-                // lo del dto lo pasa a la "entidad base"
-                Autor nuevAutor = new Autor(
-                        dtoEntrada.getNombre(),
-                        dtoEntrada.getApellido(),
-                        dtoEntrada.getNacionalidad());
-                // guarda el autor
-                Autor autorGuardado = autorService.guardarAutor(nuevAutor);
-
-                return new ResponseEntity<>(
-                        new JSendResponse("success", autorGuardado, null),HttpStatus.CREATED);
+        public ResponseEntity<JSendResponse> crearAutor(@Valid @RequestBody CrearAutorDTO dtoEntrada) {
+                return autorService.crearAutor(dtoEntrada);
         }
 
-        // obtener todos los autores
+        // Obtener todos
         @GetMapping
         public ResponseEntity<JSendResponse> obtenerAutores() {
-                List<Autor> autores = autorService.getAutores();
-                return ResponseEntity.ok(new JSendResponse("success", autores, null));
+                return autorService.obtenerAutores();
         }
 
-        // obtener autor por Id
+        // Obtener por id
         @GetMapping("/{id}")
         public ResponseEntity<JSendResponse> obtenerPorId(@PathVariable Long id) {
-                return autorService.getAutorById(id)
-                        .map(autor -> new ResponseEntity<>(new JSendResponse("success", autor, null),HttpStatus.OK))
-                        // Fallo
-                        .orElseGet(() -> {
-                                 // objeto error
-                                Map<String, String> errorDetails = Map.of("autorId", "Autor con ID " + id + " no encontrado.");
-                                        return new ResponseEntity<>(
-                                        new JSendResponse("fail", errorDetails, null),HttpStatus.NOT_FOUND);
-                        });
+                return autorService.obtenerPorId(id);
         }
 
-        // actualizar autor por id
+        // Actualizar
         @PutMapping("/{id}")
-        public ResponseEntity<JSendResponse> actualizarAutor(@PathVariable Long id,
-        @RequestBody CrearAutorDTO dtoEntrada) {
-                // Entidad "temporal" con los detalles del DTO
-                Autor autorDetalles = new Autor(
-                                dtoEntrada.getNombre(),
-                                dtoEntrada.getApellido(),
-                                dtoEntrada.getNacionalidad());
-
-                return autorService.actualizarAutor(id, autorDetalles)
-                        .map(autorActualizado -> {
-                        return new ResponseEntity<>(
-                        new JSendResponse("success", autorActualizado, null),HttpStatus.OK);
-                        })
-                        // si falló :c
-                        .orElseGet(() -> {
-                                Map<String, String> errorDetails = Map.of("autorId",
-                                "Autor con ID " + id + " no encontrado para actualizar.");
-                                return new ResponseEntity<>(
-                                        new JSendResponse("fail", errorDetails, null),HttpStatus.NOT_FOUND);
-                                });
+        public ResponseEntity<JSendResponse> actualizarAutor(@PathVariable Long id, @Valid
+                        @RequestBody CrearAutorDTO dtoEntrada) {
+                return autorService.actualizarAutor(id, dtoEntrada);
         }
 
-        // delete
+        // Eliminar
         @DeleteMapping("/{id}")
         public ResponseEntity<JSendResponse> eliminarAutor(@PathVariable Long id) {
-                // devuelve bool
-                if (autorService.eliminarPorId(id)) {
-                        return new ResponseEntity<>(new JSendResponse("success", null, "autor eliminado con éxito"),HttpStatus.NO_CONTENT);
-                }
-                // si falla...
-                Map<String, String> errorDetails = Map.of(
-                                "autorId", "Autor con ID " + id + " no encontrado para eliminar.");
-                return new ResponseEntity<>(
-                                new JSendResponse("fail", errorDetails, "efecito"),
-                                HttpStatus.NOT_FOUND);
-
+                return autorService.eliminarAutor(id);
         }
 
-        // CONSULTAS ESPECIALES-DERIVED QUERIES METHODS
-
+        // Buscar por nacionalidad
         @GetMapping(value = "/search", params = "nacionalidad")
         public ResponseEntity<JSendResponse> buscarAutorPorNacionalidad(@RequestParam String nacionalidad) {
-                List<Autor> resultados = autorService.buscarPorNacionalidad(nacionalidad);
-                if (resultados.isEmpty()) {
-                        return ResponseEntity.ok(
-                                new JSendResponse("success", List.of(),"No se encontraron actores con esa nacionalidad"));
-                }
-                return ResponseEntity.ok(
-                                new JSendResponse("success", resultados, "si hubo resultados!"));
+                return autorService.buscarPorNacionalidad(nacionalidad);
         }
 
-        // libros de autor, se pone aqui porque el Padre es autor y libros son su subconjunto
+        // Libros del autor
         @GetMapping("/{id}/libros")
         public ResponseEntity<JSendResponse> obtenerLibrosPorAutorId(@PathVariable Long id) {
-                // Verificar si el autor existe
-                if (!autorService.getAutorById(id).isPresent()) {
-                        Map<String, String> errorDetails = Map.of(
-                                        "autorId", "Autor con ID " + id + " no encontrado.");
-                        return new ResponseEntity<>(
-                                new JSendResponse("fail", errorDetails, null),HttpStatus.NOT_FOUND);
-                }
-
-                List<ListaBreveLibrosDTO> libros = libroService.buscarLibrosPorAutor(id);
-                return ResponseEntity.ok(
-                                new JSendResponse("success", libros, "Lista de libros del autor " + id));
+                return autorService.obtenerLibrosPorAutorId(id);
         }
-
 }

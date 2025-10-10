@@ -1,13 +1,16 @@
 package com.example.biblioteca.service;
 
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 
+import com.example.biblioteca.dto.CrearLibroDTO;
+import com.example.biblioteca.dto.LibroDTO;
 import com.example.biblioteca.dto.ListaBreveLibrosDTO;
+import com.example.biblioteca.exception.JSendResponse;
 import com.example.biblioteca.model.Autor;
 import com.example.biblioteca.model.Libro;
 import com.example.biblioteca.repository.AutorRepository;
@@ -20,101 +23,111 @@ public class LibroService {
     private LibroRepository libroRepository;
 
     @Autowired
-    private AutorRepository autorRepository; // Lo necesitamos para validar que tenga autor
+    private AutorRepository autorRepository;
 
-    // crear libro
-    public Optional<Libro> guardarLibro(Libro libro, Long autorId) {
-
-        // buscar al autor
-        Optional<Autor> autor = autorRepository.findById(autorId);
-
-        // si autor existe
-        if (autor.isPresent()) {
-
-            // lo obtenemos
-            Autor autorExistente = autor.get();
-
-            // relacionamos con la tabla de libro
-            libro.setAutor(autorExistente);
-
-            // guardamos el libro
-            Libro libroGuardado = libroRepository.save(libro);
-            return Optional.of(libroGuardado);
-
-        } else {
-            // no hubo autor, optional vacio
-            return Optional.empty();
+    // Crear libro
+    public ResponseEntity<JSendResponse> guardarLibro(CrearLibroDTO dtoEntrada) {
+        Optional<Autor> autorOpt = autorRepository.findById(dtoEntrada.getAutorId());
+        if (autorOpt.isEmpty()) {
+            Map<String, String> error = Map.of("autorId",
+                    "Autor con ID " + dtoEntrada.getAutorId() + " no encontrado.");
+            return new ResponseEntity<>(new JSendResponse("fail", error, "Autor fantasma ..."), HttpStatus.NOT_FOUND);
         }
+
+        boolean isbnDuplicado = libroRepository.findAll()
+                .stream()
+                .anyMatch(l -> l.getIsbn().equalsIgnoreCase(dtoEntrada.getIsbn()));
+
+        if (isbnDuplicado) {
+            Map<String, String> error = Map.of("isbn", "Ya existe un libro con ese ISBN.");
+            return new ResponseEntity<>(new JSendResponse("fail", error, "Ya existe"), HttpStatus.CONFLICT);
+        }
+
+        Libro libro = new Libro(
+                dtoEntrada.getTitulo(),
+                dtoEntrada.getIsbn(),
+                dtoEntrada.getFecha_publicacion(),
+                dtoEntrada.getGenero(),
+                autorOpt.get());
+
+        Libro guardado = libroRepository.save(libro);
+        return new ResponseEntity<>(new JSendResponse("success", new LibroDTO(guardado), "Libro creado correctamente"),
+                HttpStatus.CREATED);
     }
 
-    // listar todos los libros
-    public List<Libro> getLibros() {
-        return libroRepository.findAll();
+    // Listar todos
+    public ResponseEntity<JSendResponse> obtenerTodos() {
+        List<Libro> libros = libroRepository.findAll();
+        List<LibroDTO> librosDTO = libros.stream().map(LibroDTO::new).collect(Collectors.toList());
+        return ResponseEntity.ok(new JSendResponse("success", librosDTO, "todo oki"));
     }
 
-    // obtener libro por ID
-    public Optional<Libro> getLibroById(Long id) {
-        // Optional porque la busqueda puede fallar jeje, capaz ni existe :c
-        return libroRepository.findById(id);
+    // Buscar por ID
+    public ResponseEntity<JSendResponse> obtenerPorId(Long id) {
+        return libroRepository.findById(id)
+                .map(libro -> new ResponseEntity<>(
+                        new JSendResponse("success", new LibroDTO(libro), null), HttpStatus.OK))
+                .orElseGet(() -> {
+                    Map<String, String> error = Map.of("libroId", "Libro con ID " + id + " no encontrado.");
+                    return new ResponseEntity<>(new JSendResponse("fail", error, null), HttpStatus.NOT_FOUND);
+                });
     }
 
-    // actualizar libro por id
-    public Optional<Libro> actualizarLibro(Long id, Libro libroDetalles, Long nuevoAutorId) {
-
-        // Libro existe?
+    // Actualizar libro
+    public ResponseEntity<JSendResponse> actualizarLibro(Long id, CrearLibroDTO dtoEntrada) {
         Optional<Libro> libroOpt = libroRepository.findById(id);
+        Optional<Autor> autorOpt = autorRepository.findById(dtoEntrada.getAutorId());
 
-        if (libroOpt.isPresent()) {
-            // si si, lo obtengo
-            Libro libroExistente = libroOpt.get();
-
-            // Buscar el nuevo uutor (si el ID es diferente de null)
-            Optional<Autor> autorOpt = autorRepository.findById(nuevoAutorId);
-
-            if (autorOpt.isEmpty()) {
-                // Si el nuevo autor no existe, no podemos actualizar la relación
-                return Optional.empty();
-            }
-            // si existe sigue↓
-            // Actualizar campos
-            libroExistente.setTitulo(libroDetalles.getTitulo());
-            libroExistente.setIsbn(libroDetalles.getIsbn());
-            libroExistente.setFecha_publicacion(libroDetalles.getFecha_publicacion());
-            libroExistente.setGenero(libroDetalles.getGenero());
-
-            // Actualizar la relación con el nuevo autor
-            libroExistente.setAutor(autorOpt.get());
-
-            // Guardar y devolver el resultado
-            return Optional.of(libroRepository.save(libroExistente));
-
-        } else {
-            // Libro no encontrado
-            return Optional.empty();
+        if (libroOpt.isEmpty() || autorOpt.isEmpty()) {
+            Map<String, String> error = Map.of("recurso",
+                    "Libro con ID " + id + " o Autor con ID " + dtoEntrada.getAutorId()
+                            + " no encontrados para actualizar.");
+            return new ResponseEntity<>(new JSendResponse("fail", error, null), HttpStatus.NOT_FOUND);
         }
+
+        Libro libroExistente = libroOpt.get();
+        libroExistente.setTitulo(dtoEntrada.getTitulo());
+        libroExistente.setIsbn(dtoEntrada.getIsbn());
+        libroExistente.setFecha_publicacion(dtoEntrada.getFecha_publicacion());
+        libroExistente.setGenero(dtoEntrada.getGenero());
+        libroExistente.setAutor(autorOpt.get());
+
+        Libro actualizado = libroRepository.save(libroExistente);
+        return ResponseEntity.ok(new JSendResponse("success", new LibroDTO(actualizado), null));
     }
 
-    // eliminar por id
-    public boolean deleteLibroById(Long id) {
-        if (!libroRepository.existsById(id))
-            return false;
+    // Eliminar libro
+    public ResponseEntity<JSendResponse> eliminarLibro(Long id) {
+        if (!libroRepository.existsById(id)) {
+            Map<String, String> error = Map.of("libroId", "Libro con ID " + id + " no encontrado para eliminar.");
+            return new ResponseEntity<>(new JSendResponse("fail", error, null), HttpStatus.NOT_FOUND);
+        }
         libroRepository.deleteById(id);
-        return true;
+        return new ResponseEntity<>(new JSendResponse("success", null, null), HttpStatus.NO_CONTENT);
     }
 
-    // DERIVED QUERIES METHODS
+    // Buscar por género
+    public ResponseEntity<JSendResponse> buscarPorGenero(String genero) {
+        List<Libro> resultados = libroRepository.findByGenero(genero);
+        if (resultados.isEmpty()) {
+            return ResponseEntity.ok(new JSendResponse("success", List.of(),
+                    "No se encontraron libros que coincidan con el género."));
+        }
 
-    public List<Libro> buscarPorGenero(String genero) {
-        return libroRepository.findByGenero(genero);
+        List<LibroDTO> librosDTO = resultados.stream().map(LibroDTO::new).collect(Collectors.toList());
+        return ResponseEntity.ok(new JSendResponse("success", librosDTO, "si hubo resultado :)"));
     }
 
+    // Contar libros agrupados por autor
+    public ResponseEntity<JSendResponse> contarLibrosPorAutor() {
+        var resultados = libroRepository.contarLibrosPorAutor();
+        return ResponseEntity.ok(new JSendResponse("success", resultados, "Conteo de libros agrupados por autor"));
+    }
+
+    // Buscar libros por autor (para el controlador de autor)
     public List<ListaBreveLibrosDTO> buscarLibrosPorAutor(Long autorId) {
         return libroRepository.findByAutorId(autorId)
                 .stream().map(ListaBreveLibrosDTO::new)
                 .collect(Collectors.toList());
-    }
-
-    public List<Object[]> contarLibrosPorAutor() {
-        return libroRepository.contarLibrosPorAutor();
     }
 }

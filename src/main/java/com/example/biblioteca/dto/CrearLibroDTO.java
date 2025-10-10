@@ -2,13 +2,27 @@ package com.example.biblioteca.dto;
 
 import java.time.LocalDate;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
 public class CrearLibroDTO {
 
+    @NotBlank(message = "El título no puede estar vacío")
+    @Size(max = 100, message = "El título no debe exceder los 100 caracteres")
     private String titulo;
+
+    @NotBlank(message = "El ISBN no puede estar vacío")
     private String isbn;
+
+    @NotNull(message = "La fecha de publicación es obligatoria")
     private LocalDate fecha_publicacion;
+
+    @NotBlank(message = "El género no puede estar vacío")
     private String genero;
-    private Long autorId; // <-- Clave para relacionar
+
+    @NotNull(message = "Debe especificar el ID del autor")
+    private Long autorId;
 
     public CrearLibroDTO() {
     }
