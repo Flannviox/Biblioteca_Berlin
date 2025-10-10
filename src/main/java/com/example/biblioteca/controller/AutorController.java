@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 import com.example.biblioteca.dto.CrearAutorDTO;
 import com.example.biblioteca.dto.ListaBreveLibrosDTO;
+import com.example.biblioteca.exception.JSendResponse;
 import com.example.biblioteca.model.Autor;
 import com.example.biblioteca.service.AutorService;
 import com.example.biblioteca.service.LibroService;
@@ -101,6 +102,7 @@ public class AutorController {
         }
 
         // CONSULTAS ESPECIALES-DERIVED QUERIES METHODS
+
         @GetMapping(value = "/search", params = "nacionalidad")
         public ResponseEntity<JSendResponse> buscarAutorPorNacionalidad(@RequestParam String nacionalidad) {
                 List<Autor> resultados = autorService.buscarPorNacionalidad(nacionalidad);
@@ -112,21 +114,7 @@ public class AutorController {
                                 new JSendResponse("success", resultados, "si hubo resultados!"));
         }
 
-        // buscar por parte de apellido ( no es necesario poner todo el apellido completo xd)
-
-        @GetMapping(value = "/search", params = "apellido")
-        public ResponseEntity<JSendResponse> buscarAutorPorApellido(@RequestParam String apellido) {
-                List<Autor> resultados = autorService.buscarPorApellido(apellido);
-                if (resultados.isEmpty()) {
-                        return ResponseEntity.ok(
-                                new JSendResponse("success", List.of(), "No se encontraron actores con ese apellido"));
-                }
-                return ResponseEntity.ok(
-                        new JSendResponse("success", resultados, "si hubo resultados!"));
-        }
-
         // libros de autor, se pone aqui porque el Padre es autor y libros son su subconjunto
-
         @GetMapping("/{id}/libros")
         public ResponseEntity<JSendResponse> obtenerLibrosPorAutorId(@PathVariable Long id) {
                 // Verificar si el autor existe

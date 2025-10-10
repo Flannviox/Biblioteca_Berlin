@@ -3,17 +3,16 @@ package com.example.biblioteca.model;
 import jakarta.persistence.*;
 import java.time.LocalDate;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 
 @Entity
 
-/*
- * esto lo puso flavio:)
- * 
- * @NamedQuery(
- * name = "Libro.findByGenero",
- * query = "SELECT l FROM Libro l WHERE l.genero = :genero"
- * )
- */
+@NamedQueries({
+        // simple: buscar por título exacto
+        @NamedQuery(name = "Libro.findByTitulo", query = "SELECT l FROM Libro l WHERE l.titulo = :titulo"),
+        // compleja: agrupa por autor y cuenta sus libros
+        @NamedQuery(name = "Libro.countByAutor", query = "SELECT a.nombre, COUNT(l) FROM Libro l JOIN l.autor a GROUP BY a.nombre")
+})
 public class Libro {
 
     @Id
@@ -29,7 +28,7 @@ public class Libro {
     // muchos libros pertencen a un autor
     @ManyToOne
     @JoinColumn(name = "id_autor", nullable = false)
- 
+    @JsonBackReference
     private Autor autor;
 
     // constructores
@@ -59,10 +58,11 @@ public class Libro {
     public void setTitulo(String titulo) {
         this.titulo = titulo;
     }
-     public String getIsbn() {
+
+    public String getIsbn() {
         return isbn;
     }
-    
+
     public void setIsbn(String isbn) {
         this.isbn = isbn;
     }

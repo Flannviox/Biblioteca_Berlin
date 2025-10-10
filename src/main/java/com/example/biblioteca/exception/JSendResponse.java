@@ -1,4 +1,4 @@
-package com.example.biblioteca.controller;
+package com.example.biblioteca.exception;
 
 //da forma jsend a respuesta de la API
 public class JSendResponse {

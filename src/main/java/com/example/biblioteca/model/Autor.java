@@ -1,5 +1,8 @@
 package com.example.biblioteca.model;
 
+import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 
 import jakarta.persistence.*;
 
@@ -8,14 +11,19 @@ public class Autor {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id_autor") // Nombre en BD si lo necesitas   
-    private Long id;// Nombre en Java
+    @Column(name = "id_autor")
+    private Long id;
+
     private String nombre;
     private String apellido;
     private String nacionalidad;
 
-   
-    // constructor solo
+    @OneToMany(mappedBy = "autor", cascade = CascadeType.ALL)
+    @JsonManagedReference
+
+    private List<Libro> libros;
+
+    // constructor vacío
     public Autor() {
     }
 
@@ -56,6 +64,14 @@ public class Autor {
 
     public void setNacionalidad(String nacionalidad) {
         this.nacionalidad = nacionalidad;
-    }  
+    }
+
+    public List<Libro> getLibros() {
+        return libros;
+    }
+
+    public void setLibros(List<Libro> libros) {
+        this.libros = libros;
+    }
 
 }

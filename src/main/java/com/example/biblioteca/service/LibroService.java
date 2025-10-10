@@ -96,11 +96,10 @@ public class LibroService {
 
     // eliminar por id
     public boolean deleteLibroById(Long id) {
-        if (libroRepository.existsById(id)) {
-            libroRepository.deleteById(id);
-            return true;
-        }
-        return false;
+        if (!libroRepository.existsById(id))
+            return false;
+        libroRepository.deleteById(id);
+        return true;
     }
 
     // DERIVED QUERIES METHODS
@@ -109,21 +108,13 @@ public class LibroService {
         return libroRepository.findByGenero(genero);
     }
 
-    public List<Libro> buscarPorTituloOIsbn(String parteDelTitulo, String isbn) {
-        return libroRepository.findByTituloContainingOrIsbn(parteDelTitulo, isbn);
+    public List<ListaBreveLibrosDTO> buscarLibrosPorAutor(Long autorId) {
+        return libroRepository.findByAutorId(autorId)
+                .stream().map(ListaBreveLibrosDTO::new)
+                .collect(Collectors.toList());
     }
 
-    // ssi obtenemos los libros de un autor, en cada libro saldra los datos del
-    // autor y pues es irrelevante, entonces con listabreve solo nos saldrá los
-    // datos del libro y no la info del autor que ya estamos consultando
-
-    public List<ListaBreveLibrosDTO> buscarLibrosPorAutor(Long autorId) {
-        // primer buscamos todos los Libro del autor (dará toda la info libro+autor)
-        List<Libro> libros = libroRepository.findByAutorId(autorId);
-
-        // mapeamos la entidad al DTO para omitir info
-        return libros.stream()
-                .map(ListaBreveLibrosDTO::new)
-                .collect(Collectors.toList());
+    public List<Object[]> contarLibrosPorAutor() {
+        return libroRepository.contarLibrosPorAutor();
     }
 }

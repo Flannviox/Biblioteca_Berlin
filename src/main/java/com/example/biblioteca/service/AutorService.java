@@ -58,7 +58,4 @@ public class AutorService {
         return autorRepository.findByNacionalidad(nacionalidad);
     }
 
-    public List<Autor>buscarPorApellido(String parteDelApellido){
-        return autorRepository.findByApellidoContaining(parteDelApellido);
-    }
 }
